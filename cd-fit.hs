@@ -2,6 +2,8 @@ module Main where
 
 import Text.ParserCombinators.Parsec
 import Data.List (sortBy)
+import Test.QuickCheck
+import Control.Monad (liftM2, replicateM)
 
 -- parseInput parses output of "du -sb", which consists of many lines.
 -- each of which describes single directory
@@ -41,6 +43,19 @@ maybe_add_dir p d =
         new_dirs = d:(dirs p)
         in if new_size > media_size then p else DirPack new_size new_dirs
 
+
+-- We must teach quickcheck how to generate arbitrary "Dir"s
+instance Arbitrary Dir where
+    arbitrary = liftM2 Dir gen_size gen_name
+        where gen_size = do s <- choose(10,1400)
+                            return (s*1024*1024)
+              gen_name = do n <- choose(1,300)
+                            replicateM n (elements "fubar/")
+
+prop_greedy_pack_is_fixpoint ds =
+    let pack = greedy_pack ds
+        in pack_size pack == pack_size (greedy_pack (dirs pack))
+
 main = do input <- getContents
        	  putStrLn ("DEBUG: got input " ++ input)
           let dirs = case parse parseInput "stdin" input of
@@ -48,3 +63,5 @@ main = do input <- getContents
                                            "\nError:\n" ++ show err
                        Right result -> result
           putStrLn "Solution:"; print (greedy_pack dirs)
+
+                   
